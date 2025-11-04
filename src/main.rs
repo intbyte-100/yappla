@@ -1,29 +1,29 @@
 mod scroll;
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
 use std::sync::atomic::AtomicI32;
 
 use crate::scroll::{ScrollComponent, ScrollElement, ScrollImpl, ScrollSettings};
-use glib::object::{Cast, ObjectExt};
+use glib::object::{Cast, ObjectExt, ObjectType};
 use glib::types::StaticType;
 use gtk::prelude::{BoxExt, GtkWindowExt};
 use relm4::gtk::gdk::Display;
 use relm4::gtk::gio::ListStore;
 use relm4::gtk::prelude::{EntryExt, GestureSingleExt, ListItemExt, OrientableExt, WidgetExt};
-use relm4::gtk::{CssProvider, ListItem, NoSelection, SignalListItemFactory};
+use relm4::gtk::{CssProvider, Label, ListItem, NoSelection, SignalListItemFactory};
 use relm4::*;
 
 #[derive(Default)]
-struct MyScrollImpl;
-
-static COUNTER: AtomicI32 = AtomicI32::new(0);
+struct MyScrollImpl {
+    focused: RefCell<Option<gtk::Box>>,
+}
 
 impl ScrollImpl for MyScrollImpl {
-    fn setup() -> ScrollSettings {
+    fn setup(this: Rc<Self>) -> ScrollSettings {
         let list_store = ListStore::with_type(ScrollElement::static_type());
         let selection = NoSelection::new(Some(list_store.clone()));
 
-        
         for i in 1..101 {
             list_store.append(&ScrollElement::new(format!("{i}th element").as_str()));
         }
@@ -33,7 +33,7 @@ impl ScrollImpl for MyScrollImpl {
         }
     }
 
-    fn setup_element(_: &SignalListItemFactory, item: &ListItem) {
+    fn setup_element(this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
         let gesture = gtk::GestureClick::new();
 
         view! {
@@ -47,25 +47,25 @@ impl ScrollImpl for MyScrollImpl {
             }
         };
 
-        let current = COUNTER.load(std::sync::atomic::Ordering::Relaxed);
-        COUNTER.store(current +1, std::sync::atomic::Ordering::Relaxed);
-        
-        println!("{current}");
-        
-        let label = gtk_box.clone();
+        let box_clone = gtk_box.clone();
         gesture.connect_pressed(move |_gesture, _n_press, _x, _y| {
-            label.add_css_class("row-focused");
+            if let Some(focused) = this.focused.borrow().as_ref() {
+                if box_clone.as_ptr() == focused.as_ptr() {
+                    println!("Action")
+                } 
+                
+                focused.remove_css_class("row-focused");
+            }
+            
+            box_clone.add_css_class("row-focused");
+            this.focused.borrow_mut().replace(box_clone.clone());
         });
 
         item.set_child(Some(&gtk_box));
     }
 
-    fn bind_element(_: &SignalListItemFactory, item: &ListItem) {
-        let gtk_box = item.child()
-            .unwrap()
-            .downcast::<gtk::Box>()
-            .unwrap();
-        
+    fn bind_element(this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
+        let gtk_box = item.child().unwrap().downcast::<gtk::Box>().unwrap();
         let text: glib::GString = item.item().unwrap().property("string");
 
         gtk_box
@@ -95,7 +95,7 @@ impl SimpleComponent for App {
         gtk::Window {
             set_title: Some("Factory example"),
             set_default_size: (300, 100),
-            
+
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
@@ -126,11 +126,19 @@ impl SimpleComponent for App {
                 color: white;
             }
             
+            listview cell { padding: 0px 0px; }
+            
+            .listview row {
+              min-height: 0px;
+              margin: 0px;
+              padding: 0px;
+            }
+
+
 
         ",
         );
-        
-        
+
         gtk::style_context_add_provider_for_display(
             &Display::default().unwrap(),
             &provider,

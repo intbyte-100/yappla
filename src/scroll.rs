@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use relm4::gtk::{prelude::*, ListItem, ListStore, SignalListItemFactory};
 use relm4::*;
 
@@ -37,9 +39,9 @@ impl ScrollElement {
 }
 
 pub trait ScrollImpl {
-    fn setup() -> ScrollSettings;
-    fn setup_element(factory: &SignalListItemFactory, item: &ListItem);
-    fn bind_element(factory: &SignalListItemFactory, item: &ListItem);
+    fn setup(this: Rc<Self>) -> ScrollSettings;
+    fn setup_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
+    fn bind_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
 }
 
 pub struct ScrollSettings {
@@ -50,23 +52,24 @@ pub struct ScrollSettings {
 pub struct ScrollComponent<T> where T: ScrollImpl {
     pub list_store: gtk::gio::ListStore,
     pub selection: gtk::NoSelection,
-    scroll_impl: T
+    scroll_impl: Rc<T>
 }
 
 
 
 
 
-impl<T> ScrollComponent<T> where T: ScrollImpl{
-    fn setup_factory() -> gtk::SignalListItemFactory {
+impl<T> ScrollComponent<T> where T: ScrollImpl + 'static {
+    fn setup_factory(this: Rc<T>) -> gtk::SignalListItemFactory {
         let factory = gtk::SignalListItemFactory::new();
         
-        factory.connect_setup(|factory, item| {
-            T::setup_element(&factory, &item);
+        let impl_clone = this.clone();
+        factory.connect_setup(move |factory, item| {
+            T::setup_element(impl_clone.clone(),  &factory, &item);
         });
 
-        factory.connect_bind(|factory, item| {
-            T::bind_element(&factory, &item);
+        factory.connect_bind(move|factory, item| {
+            T::bind_element(this.clone(), &factory, &item);
         });
 
         factory
@@ -89,11 +92,12 @@ impl<T> relm4::SimpleComponent for ScrollComponent<T> where T: ScrollImpl + Defa
                 set_hexpand: true,
                 set_policy: (gtk::PolicyType::Automatic, gtk::PolicyType::Automatic),
     
+                #[name = "list"]
                 gtk::ListView {
+                    add_css_class: "listview",
                     set_show_separators: false,
                     set_model: Some(&model.selection),
-                    set_can_focus: false,
-                    set_factory: Some(&Self::setup_factory())
+                    set_can_focus: false
                 }
             }
         }
@@ -105,15 +109,20 @@ impl<T> relm4::SimpleComponent for ScrollComponent<T> where T: ScrollImpl + Defa
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let settings = T::setup();
+        let scroll_impl = Rc::from(T::default());
+        let settings = T::setup(scroll_impl.clone());
         
         let model = ScrollComponent {
             selection: settings.selection,
             list_store: settings.list_store,
-            scroll_impl: T::default()
+            scroll_impl: scroll_impl.clone()
         };
 
+        
+        
         let widgets = view_output!();
+        
+        widgets.list.set_factory(Some(&Self::setup_factory(scroll_impl)));
 
         ComponentParts { model, widgets }
     }
