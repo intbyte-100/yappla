@@ -1,0 +1,19 @@
+box.row-focused {
+    background-color: #3399FF;
+    color: white;
+}
+
+.entry {
+    padding: 5px; 
+    margin: 10px;
+}
+
+listview cell { 
+    padding: 0px 0px; 
+}
+
+.listview row {
+    min-height: 0px;
+    margin: 0px;
+    padding: 0px;
+}

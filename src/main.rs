@@ -1,43 +1,42 @@
 mod scroll;
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::atomic::AtomicI32;
 
-use crate::scroll::{ScrollComponent, ScrollElement, ScrollImpl, ScrollSettings};
-use glib::object::{Cast, ObjectExt, ObjectType};
+use crate::scroll::{ScrollBox, ScrollComponent, ScrollImpl, ScrollSettings, ScrollingData};
+use glib::object::{Cast, ObjectType};
 use glib::types::StaticType;
 use gtk::prelude::{BoxExt, GtkWindowExt};
 use relm4::gtk::gdk::Display;
 use relm4::gtk::gio::ListStore;
-use relm4::gtk::prelude::{EntryExt, GestureSingleExt, ListItemExt, OrientableExt, WidgetExt};
-use relm4::gtk::{CssProvider, Label, ListItem, NoSelection, SignalListItemFactory};
+use relm4::gtk::prelude::{EntryExt, ListItemExt, OrientableExt, WidgetExt};
+use relm4::gtk::{CssProvider, ListItem, NoSelection, SignalListItemFactory};
 use relm4::*;
 
 #[derive(Default)]
 struct MyScrollImpl {
-    focused: RefCell<Option<gtk::Box>>,
+    focused: RefCell<Option<ScrollBox>>,
 }
 
 impl ScrollImpl for MyScrollImpl {
-    fn setup(this: Rc<Self>) -> ScrollSettings {
-        let list_store = ListStore::with_type(ScrollElement::static_type());
+    fn setup(_this: Rc<Self>) -> ScrollSettings {
+        let list_store = ListStore::with_type(ScrollingData::static_type());
         let selection = NoSelection::new(Some(list_store.clone()));
 
         for i in 1..101 {
-            list_store.append(&ScrollElement::new(format!("{i}th element").as_str()));
+            let data = ScrollingData::new(format!("{i}").as_str());
+            data.set_index(i - 1);
+            list_store.append(&data);
         }
-        ScrollSettings {
-            list_store,
-            selection,
-        }
+
+        ScrollSettings { selection }
     }
 
     fn setup_element(this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
         let gesture = gtk::GestureClick::new();
 
         view! {
-            gtk_box = gtk::Box {
+            gtk_box = ScrollBox {
                 add_controller: gesture.clone(),
                 set_height_request: 20,
                 set_margin_top: 0,
@@ -51,12 +50,12 @@ impl ScrollImpl for MyScrollImpl {
         gesture.connect_pressed(move |_gesture, _n_press, _x, _y| {
             if let Some(focused) = this.focused.borrow().as_ref() {
                 if box_clone.as_ptr() == focused.as_ptr() {
-                    println!("Action")
-                } 
-                
+                    println!("Action {}", box_clone.index())
+                }
+
                 focused.remove_css_class("row-focused");
             }
-            
+
             box_clone.add_css_class("row-focused");
             this.focused.borrow_mut().replace(box_clone.clone());
         });
@@ -64,9 +63,12 @@ impl ScrollImpl for MyScrollImpl {
         item.set_child(Some(&gtk_box));
     }
 
-    fn bind_element(this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
+    fn bind_element(_this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
         let gtk_box = item.child().unwrap().downcast::<gtk::Box>().unwrap();
-        let text: glib::GString = item.item().unwrap().property("string");
+        let scroll_box = gtk_box.clone().downcast::<ScrollBox>().unwrap();
+        let data = item.item().unwrap().downcast::<ScrollingData>().unwrap();
+
+        scroll_box.set_index(data.index());
 
         gtk_box
             .iter_children()
@@ -74,7 +76,7 @@ impl ScrollImpl for MyScrollImpl {
             .unwrap()
             .downcast::<gtk::Label>()
             .unwrap()
-            .set_text(text.as_str());
+            .set_text(data.string().as_str());
     }
 }
 
@@ -101,7 +103,6 @@ impl SimpleComponent for App {
                 set_orientation: gtk::Orientation::Vertical,
                 gtk::Entry {
                     set_hexpand: true,
-                    set_height_request: 100,
                     set_placeholder_text: Some("Enter text"),
                     set_margin_start: 10,
                     set_margin_end: 10,
@@ -119,25 +120,7 @@ impl SimpleComponent for App {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let provider = CssProvider::new();
-        provider.load_from_data(
-            "
-            box.row-focused {
-                background-color: #3399FF;
-                color: white;
-            }
-            
-            listview cell { padding: 0px 0px; }
-            
-            .listview row {
-              min-height: 0px;
-              margin: 0px;
-              padding: 0px;
-            }
-
-
-
-        ",
-        );
+        provider.load_from_data(include_str!("../theme.css"));
 
         gtk::style_context_add_provider_for_display(
             &Display::default().unwrap(),
@@ -154,7 +137,7 @@ impl SimpleComponent for App {
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {}
+    fn update(&mut self, _msg: Self::Input, _sender: ComponentSender<Self>) {}
 }
 
 fn main() {
