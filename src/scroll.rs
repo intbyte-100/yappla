@@ -1,9 +1,13 @@
+use std::cell::Ref;
 use std::rc::Rc;
 
+use glib::subclass::types::ObjectSubclassIsExt;
 use gtk::glib;
 use relm4::gtk::prelude::{BoxExt, WidgetExt};
 use relm4::gtk::{ListItem, SignalListItemFactory};
 use relm4::*;
+
+use crate::launcher_item::LauncherItem;
 
 mod scroll_data_imp {
     use glib::Object;
@@ -13,11 +17,12 @@ mod scroll_data_imp {
 
     use std::cell::{Cell, RefCell};
 
+    use crate::launcher_item::LauncherItem;
+
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::ScrollingData)]
     pub struct ScrollingData {
-        #[property(get, set)]
-        pub string: RefCell<String>,
+        pub item: RefCell<LauncherItem>,
         #[property(get, set)]
         pub index: Cell<i32>,
     }
@@ -94,8 +99,14 @@ impl RelmContainerExt for ScrollBox {
 }
 
 impl ScrollingData {
-    pub fn new(string: &str) -> Self {
-        glib::Object::builder().property("string", string).build()
+    pub fn new(item: LauncherItem) -> Self {
+        let data: Self = glib::Object::builder().build();
+        *data.imp().item.borrow_mut() = item;
+        data
+    }
+    
+    pub fn launcher_item(&self) -> Ref<'_, LauncherItem> {
+        self.imp().item.borrow()
     }
 }
 

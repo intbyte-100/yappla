@@ -1,14 +1,18 @@
+mod launcher_item;
 mod scroll;
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::launcher_item::ShellCommand;
 use crate::scroll::{ScrollBox, ScrollComponent, ScrollImpl, ScrollSettings, ScrollingData};
+use glib::clone::Downgrade;
 use glib::object::{Cast, ObjectType};
 use glib::types::StaticType;
 use gtk::prelude::{BoxExt, GtkWindowExt};
 use relm4::gtk::gdk::Display;
 use relm4::gtk::gio::ListStore;
+use relm4::gtk::gio::prelude::ListModelExt;
 use relm4::gtk::prelude::{EntryExt, ListItemExt, OrientableExt, WidgetExt};
 use relm4::gtk::{CssProvider, ListItem, NoSelection, SignalListItemFactory};
 use relm4::*;
@@ -16,15 +20,17 @@ use relm4::*;
 #[derive(Default)]
 struct MyScrollImpl {
     focused: RefCell<Option<ScrollBox>>,
+    list_store: RefCell<Option<ListStore>>,
 }
 
 impl ScrollImpl for MyScrollImpl {
-    fn setup(_this: Rc<Self>) -> ScrollSettings {
+    fn setup(this: Rc<Self>) -> ScrollSettings {
         let list_store = ListStore::with_type(ScrollingData::static_type());
         let selection = NoSelection::new(Some(list_store.clone()));
+        *this.list_store.borrow_mut() = Some(list_store.clone());
 
         for i in 1..101 {
-            let data = ScrollingData::new(format!("{i}").as_str());
+            let data = ScrollingData::new(ShellCommand::new(format!("alacritty")).into());
             data.set_index(i - 1);
             list_store.append(&data);
         }
@@ -46,18 +52,32 @@ impl ScrollImpl for MyScrollImpl {
             }
         };
 
-        let box_clone = gtk_box.clone();
+        let this = this.downgrade();
+        let gtk_clone = gtk_box.downgrade();
+
         gesture.connect_pressed(move |_gesture, _n_press, _x, _y| {
+            let this = this.upgrade().unwrap();
+            let gtk_box = gtk_clone.upgrade().unwrap();
+
             if let Some(focused) = this.focused.borrow().as_ref() {
-                if box_clone.as_ptr() == focused.as_ptr() {
-                    println!("Action {}", box_clone.index())
+                if gtk_box.as_ptr() == focused.as_ptr() {
+                    this.list_store
+                        .borrow()
+                        .as_ref()
+                        .unwrap()
+                        .item(gtk_box.index() as u32)
+                        .unwrap()
+                        .downcast::<ScrollingData>()
+                        .unwrap()
+                        .launcher_item()
+                        .launch();
                 }
 
                 focused.remove_css_class("row-focused");
             }
 
-            box_clone.add_css_class("row-focused");
-            this.focused.borrow_mut().replace(box_clone.clone());
+            gtk_box.add_css_class("row-focused");
+            this.focused.borrow_mut().replace(gtk_box.clone());
         });
 
         item.set_child(Some(&gtk_box));
@@ -76,7 +96,7 @@ impl ScrollImpl for MyScrollImpl {
             .unwrap()
             .downcast::<gtk::Label>()
             .unwrap()
-            .set_text(data.string().as_str());
+            .set_text(data.launcher_item().name().as_str());
     }
 }
 
