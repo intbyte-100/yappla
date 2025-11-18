@@ -2,9 +2,10 @@ mod launcher_item;
 mod scroll;
 
 use std::cell::RefCell;
+use std::process::exit;
 use std::rc::Rc;
 
-use crate::launcher_item::ShellCommand;
+use crate::launcher_item::{Application, ShellCommand};
 use crate::scroll::{ScrollBox, ScrollComponent, ScrollImpl, ScrollSettings, ScrollingData};
 use glib::clone::Downgrade;
 use glib::object::{Cast, ObjectType};
@@ -30,7 +31,9 @@ impl ScrollImpl for MyScrollImpl {
         *this.list_store.borrow_mut() = Some(list_store.clone());
 
         for i in 1..101 {
-            let data = ScrollingData::new(ShellCommand::new(format!("alacritty")).into());
+            let data = ScrollingData::new(
+                Application::new("Windows i s".into(), "description".into(), "allacritty -c 'echo windows is shit'".into()).into(),
+            );
             data.set_index(i - 1);
             list_store.append(&data);
         }
@@ -70,7 +73,10 @@ impl ScrollImpl for MyScrollImpl {
                         .downcast::<ScrollingData>()
                         .unwrap()
                         .launcher_item()
-                        .launch();
+                        .launch().unwrap_or_else(|error| {
+                            eprintln!("Error: {}", error);
+                            exit(-1);
+                        });
                 }
 
                 focused.remove_css_class("row-focused");

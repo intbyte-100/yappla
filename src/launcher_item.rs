@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{fmt::Display, io, process::Command};
 
 pub enum LauncherItem {
     Application(Application),
@@ -7,12 +7,27 @@ pub enum LauncherItem {
     None,
 }
 
+pub struct LaunchError {
+    cause: io::Error,
+    error: String,
+    command: String,
+}
+
+
+impl Display for LaunchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}\n  Command: {}\n  Cause: {}", self.error, self.command, self.cause)
+    }
+}
 impl LauncherItem {
-    pub fn launch(&self) {
+    pub fn launch(&self) -> Result<(), LaunchError> {
         match self {
             LauncherItem::Application(application) => application.launch(),
             LauncherItem::Command(shell_command) => shell_command.launch(),
-            LauncherItem::String(string) => println!("{}", string),
+            LauncherItem::String(string) => {
+                println!("{}", string);
+                Ok(())
+            }
             LauncherItem::None => panic!("LaucherItem::None cannot be launched."),
         }
     }
@@ -48,8 +63,15 @@ impl Application {
         }
     }
 
-    fn launch(&self) {
-        Command::new(self.exec.clone()).spawn().unwrap();
+    fn launch(&self) -> Result<(), LaunchError> {
+        Command::new(self.exec.clone())
+            .spawn()
+            .map(|_| ())
+            .map_err(|error| LaunchError {
+                cause: error,
+                error: format!("Failed to start application '{}'", self.name),
+                command: self.exec.clone()
+            })
     }
 }
 
@@ -62,8 +84,13 @@ impl ShellCommand {
         ShellCommand { exec }
     }
 
-    fn launch(&self) {
-        Command::new(self.exec.clone()).spawn().unwrap();
+    fn launch(&self) -> Result<(), LaunchError> {
+        Command::new(self.exec.clone()).spawn().map(|_| ())
+            .map_err(|error| LaunchError {
+                cause: error,
+                error: format!("Failed to execute command"),
+                command: self.exec.clone()
+            })
     }
 }
 
