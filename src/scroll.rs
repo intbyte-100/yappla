@@ -110,7 +110,7 @@ impl ScrollingData {
     }
 }
 
-pub trait ScrollImpl {
+pub trait ScrollComponentImpl {
     fn setup(this: Rc<Self>) -> ScrollSettings;
     fn setup_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
     fn bind_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
@@ -122,7 +122,7 @@ pub struct ScrollSettings {
 
 pub struct ScrollComponent<T>
 where
-    T: ScrollImpl,
+    T: ScrollComponentImpl,
 {
     pub selection: gtk::NoSelection,
     _scroll_impl: Rc<T>,
@@ -130,7 +130,7 @@ where
 
 impl<T> ScrollComponent<T>
 where
-    T: ScrollImpl + 'static,
+    T: ScrollComponentImpl + 'static,
 {
     fn setup_factory(this: Rc<T>) -> gtk::SignalListItemFactory {
         let factory = gtk::SignalListItemFactory::new();
@@ -151,7 +151,7 @@ where
 #[relm4::component(pub)]
 impl<T> relm4::SimpleComponent for ScrollComponent<T>
 where
-    T: ScrollImpl + Default + 'static,
+    T: ScrollComponentImpl + Default + 'static,
 {
     type Input = ();
     type Output = ();

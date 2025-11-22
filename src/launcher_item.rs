@@ -19,6 +19,8 @@ impl Display for LaunchError {
         write!(f, "{}\n  Command: {}\n  Cause: {}", self.error, self.command, self.cause)
     }
 }
+
+
 impl LauncherItem {
     pub fn launch(&self) -> Result<(), LaunchError> {
         match self {
