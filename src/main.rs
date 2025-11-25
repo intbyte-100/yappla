@@ -2,6 +2,7 @@ mod launcher_item;
 mod scroll;
 mod mode;
 mod launcher_scroll;
+mod index_list;
 
 
 use crate::scroll::ScrollComponent;
