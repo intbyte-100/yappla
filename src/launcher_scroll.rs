@@ -3,7 +3,7 @@ use std::{cell::RefCell, process::exit, rc::Rc};
 use glib::{clone::Downgrade, object::{Cast, ObjectType}, types::StaticType};
 use relm4::{gtk::{self, gio::{prelude::ListModelExt, ListStore}, prelude::{ListItemExt, WidgetExt}, ListItem, NoSelection, SignalListItemFactory}, view, RelmIterChildrenExt};
 
-use crate::{launcher_item::Application, scroll::{ScrollBox, ScrollComponentImpl, ScrollSettings, ScrollingData}};
+use crate::{menu_item_model::Application, scroll::{ScrollBox, ScrollComponentImpl, ScrollSettings, ScrollingData}};
 
 
 #[derive(Default)]
@@ -61,7 +61,7 @@ impl ScrollComponentImpl for LauncherScrollImpl {
                         .downcast::<ScrollingData>()
                         .unwrap()
                         .launcher_item()
-                        .launch().unwrap_or_else(|error| {
+                        .run_action().unwrap_or_else(|error| {
                             eprintln!("Error: {}", error);
                             exit(-1);
                         });

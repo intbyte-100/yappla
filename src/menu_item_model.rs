@@ -1,52 +1,52 @@
 use std::{fmt::Display, io, process::Command};
 
-pub enum LauncherItem {
+pub enum MenuItemModel {
     Application(Application),
     Command(ShellCommand),
     String(String),
     None,
 }
 
-pub struct LaunchError {
+pub struct ActionError {
     cause: io::Error,
     error: String,
     command: String,
 }
 
 
-impl Display for LaunchError {
+impl Display for ActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}\n  Command: {}\n  Cause: {}", self.error, self.command, self.cause)
     }
 }
 
 
-impl LauncherItem {
-    pub fn launch(&self) -> Result<(), LaunchError> {
+impl MenuItemModel {
+    pub fn run_action(&self) -> Result<(), ActionError> {
         match self {
-            LauncherItem::Application(application) => application.launch(),
-            LauncherItem::Command(shell_command) => shell_command.launch(),
-            LauncherItem::String(string) => {
+            MenuItemModel::Application(application) => application.launch(),
+            MenuItemModel::Command(shell_command) => shell_command.launch(),
+            MenuItemModel::String(string) => {
                 println!("{}", string);
                 Ok(())
             }
-            LauncherItem::None => panic!("LaucherItem::None cannot be launched."),
+            MenuItemModel::None => panic!("LaucherItem::None cannot be launched."),
         }
     }
 
     pub fn name(&self) -> &String {
         match self {
-            LauncherItem::Application(application) => &application.name,
-            LauncherItem::Command(shell_command) => &shell_command.exec,
-            LauncherItem::String(string) => string,
-            LauncherItem::None => panic!("You can't get name from LauncherItem::None"),
+            MenuItemModel::Application(application) => &application.name,
+            MenuItemModel::Command(shell_command) => &shell_command.exec,
+            MenuItemModel::String(string) => string,
+            MenuItemModel::None => panic!("You can't get name from LauncherItem::None"),
         }
     }
 }
 
-impl Default for LauncherItem {
+impl Default for MenuItemModel {
     fn default() -> Self {
-        LauncherItem::None
+        MenuItemModel::None
     }
 }
 
@@ -65,11 +65,11 @@ impl Application {
         }
     }
 
-    fn launch(&self) -> Result<(), LaunchError> {
+    fn launch(&self) -> Result<(), ActionError> {
         Command::new(self.exec.clone())
             .spawn()
             .map(|_| ())
-            .map_err(|error| LaunchError {
+            .map_err(|error| ActionError {
                 cause: error,
                 error: format!("Failed to start application '{}'", self.name),
                 command: self.exec.clone()
@@ -86,9 +86,9 @@ impl ShellCommand {
         ShellCommand { exec }
     }
 
-    fn launch(&self) -> Result<(), LaunchError> {
+    fn launch(&self) -> Result<(), ActionError> {
         Command::new(self.exec.clone()).spawn().map(|_| ())
-            .map_err(|error| LaunchError {
+            .map_err(|error| ActionError {
                 cause: error,
                 error: format!("Failed to execute command"),
                 command: self.exec.clone()
@@ -96,20 +96,20 @@ impl ShellCommand {
     }
 }
 
-impl Into<LauncherItem> for Application {
-    fn into(self) -> LauncherItem {
-        LauncherItem::Application(self)
+impl Into<MenuItemModel> for Application {
+    fn into(self) -> MenuItemModel {
+        MenuItemModel::Application(self)
     }
 }
 
-impl Into<LauncherItem> for ShellCommand {
-    fn into(self) -> LauncherItem {
-        LauncherItem::Command(self)
+impl Into<MenuItemModel> for ShellCommand {
+    fn into(self) -> MenuItemModel {
+        MenuItemModel::Command(self)
     }
 }
 
-impl Into<LauncherItem> for String {
-    fn into(self) -> LauncherItem {
-        LauncherItem::String(self)
+impl Into<MenuItemModel> for String {
+    fn into(self) -> MenuItemModel {
+        MenuItemModel::String(self)
     }
 }

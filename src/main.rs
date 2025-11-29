@@ -1,4 +1,4 @@
-mod launcher_item;
+mod menu_item_model;
 mod scroll;
 mod mode;
 mod launcher_scroll;

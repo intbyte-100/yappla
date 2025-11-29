@@ -7,7 +7,7 @@ use relm4::gtk::prelude::{BoxExt, WidgetExt};
 use relm4::gtk::{ListItem, SignalListItemFactory};
 use relm4::*;
 
-use crate::launcher_item::LauncherItem;
+use crate::menu_item_model::MenuItemModel;
 
 mod scroll_data_imp {
     use glib::Object;
@@ -17,12 +17,12 @@ mod scroll_data_imp {
 
     use std::cell::{Cell, RefCell};
 
-    use crate::launcher_item::LauncherItem;
+    use crate::menu_item_model::MenuItemModel;
 
     #[derive(Default, Properties)]
     #[properties(wrapper_type = super::ScrollingData)]
     pub struct ScrollingData {
-        pub item: RefCell<LauncherItem>,
+        pub item: RefCell<MenuItemModel>,
         #[property(get, set)]
         pub index: Cell<i32>,
     }
@@ -99,13 +99,13 @@ impl RelmContainerExt for ScrollBox {
 }
 
 impl ScrollingData {
-    pub fn new(item: LauncherItem) -> Self {
+    pub fn new(item: MenuItemModel) -> Self {
         let data: Self = glib::Object::builder().build();
         *data.imp().item.borrow_mut() = item;
         data
     }
     
-    pub fn launcher_item(&self) -> Ref<'_, LauncherItem> {
+    pub fn launcher_item(&self) -> Ref<'_, MenuItemModel> {
         self.imp().item.borrow()
     }
 }
