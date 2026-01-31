@@ -1,30 +1,35 @@
-use std::{cell::RefCell, process::exit, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
-use glib::{clone::Downgrade, object::{Cast, ObjectType}, types::StaticType};
-use relm4::{gtk::{self, gio::{prelude::ListModelExt, ListStore}, prelude::{ListItemExt, WidgetExt}, ListItem, NoSelection, SignalListItemFactory}, view, RelmIterChildrenExt};
+use glib::{
+    clone::Downgrade,
+    object::{Cast, ObjectType},
+};
+use relm4::{
+    RelmIterChildrenExt,
+    gtk::{
+        self, ListItem, NoSelection, SignalListItemFactory,
+        prelude::{ListItemExt, WidgetExt},
+    },
+    view,
+};
 
-use crate::{menu_item_model::Application, scroll::{ScrollBox, ScrollComponentImpl, ScrollSettings, ScrollingData}};
 
+use crate::{
+    modes::mode::Mode,
+    index_list::Index,
+    modes::echo_mode::EchoMode,
+    scroll::{ScrollBox, ScrollComponentImpl, ScrollSettings},
+};
 
-#[derive(Default)]
 pub struct LauncherScrollImpl {
     focused: RefCell<Option<ScrollBox>>,
-    list_store: RefCell<Option<ListStore>>,
+    mode: Box<dyn Mode>,
 }
 
 impl ScrollComponentImpl for LauncherScrollImpl {
     fn setup(this: Rc<Self>) -> ScrollSettings {
-        let list_store = ListStore::with_type(ScrollingData::static_type());
+        let list_store = this.mode.model();
         let selection = NoSelection::new(Some(list_store.clone()));
-        *this.list_store.borrow_mut() = Some(list_store.clone());
-
-        for i in 1..101 {
-            let data = ScrollingData::new(
-                Application::new("Windows is shit".into(), "description".into(), "allacritty -c 'echo windows is shit'".into()).into(),
-            );
-            data.set_index(i - 1);
-            list_store.append(&data);
-        }
 
         ScrollSettings { selection }
     }
@@ -52,19 +57,9 @@ impl ScrollComponentImpl for LauncherScrollImpl {
 
             if let Some(focused) = this.focused.borrow().as_ref() {
                 if gtk_box.as_ptr() == focused.as_ptr() {
-                    this.list_store
-                        .borrow()
-                        .as_ref()
-                        .unwrap()
-                        .item(gtk_box.index() as u32)
-                        .unwrap()
-                        .downcast::<ScrollingData>()
-                        .unwrap()
-                        .launcher_item()
-                        .run_action().unwrap_or_else(|error| {
-                            eprintln!("Error: {}", error);
-                            exit(-1);
-                        });
+                    // TODO: replace the creation of a new index object with the use of the inner Index from gtk_box.
+                    let index = Index::new(gtk_box.index() as u32);
+                    this.mode.get_menu_item_model(&index).run_action();
                 }
 
                 focused.remove_css_class("row-focused");
@@ -77,12 +72,12 @@ impl ScrollComponentImpl for LauncherScrollImpl {
         item.set_child(Some(&gtk_box));
     }
 
-    fn bind_element(_this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
+    fn bind_element(this: Rc<Self>, _: &SignalListItemFactory, item: &ListItem) {
         let gtk_box = item.child().unwrap().downcast::<gtk::Box>().unwrap();
         let scroll_box = gtk_box.clone().downcast::<ScrollBox>().unwrap();
-        let data = item.item().unwrap().downcast::<ScrollingData>().unwrap();
+        let index = item.item().unwrap().downcast::<Index>().unwrap();
 
-        scroll_box.set_index(data.index());
+        scroll_box.set_index(index.index() as i32);
 
         gtk_box
             .iter_children()
@@ -90,6 +85,15 @@ impl ScrollComponentImpl for LauncherScrollImpl {
             .unwrap()
             .downcast::<gtk::Label>()
             .unwrap()
-            .set_text(data.launcher_item().name().as_str());
+            .set_text(this.mode.get_menu_item_model(&index).name());
+    }
+
+    fn init() -> Self {
+        Self {
+            mode: Box::from(EchoMode {
+                strings: (0..1000).map(|it| it.to_string()).collect(),
+            }),
+            focused: Default::default(),
+        }
     }
 }

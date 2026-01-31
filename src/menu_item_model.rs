@@ -85,13 +85,3 @@ impl MenuItemModel for ShellCommand {
 
 }
 
-impl MenuItemModel for String {
-    fn name<'a>(&'a self) -> &'a String {
-        &self
-    }
-
-    fn run_action(&self) -> Result<(), ActionError> {
-        println!("{}", self);
-        Ok(())
-    }
-}
