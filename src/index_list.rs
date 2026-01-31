@@ -52,7 +52,7 @@ mod index_list_imp {
     #[glib::object_subclass]
     impl ObjectSubclass for IndexList {
         const NAME: &'static str = "IndexList";
-        type Type = super::ListModel;
+        type Type = super::IndexList;
         type Interfaces = (gio::ListModel,);
     }
 
@@ -88,10 +88,10 @@ mod index_list_imp {
 }
 
 glib::wrapper! {
-    pub struct ListModel(ObjectSubclass<index_list_imp::IndexList>) @implements gio::ListModel;
+    pub struct IndexList(ObjectSubclass<index_list_imp::IndexList>) @implements gio::ListModel;
 }
 
-impl ListModel {
+impl IndexList {
     pub fn new() -> Self {
         glib::Object::builder().build()
     }

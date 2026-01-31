@@ -7,36 +7,6 @@ use relm4::gtk::prelude::{BoxExt, WidgetExt};
 use relm4::gtk::{ListItem, SignalListItemFactory};
 use relm4::*;
 
-use crate::menu_item_model::MenuItemModel;
-
-mod scroll_data_imp {
-    use glib::Object;
-    use glib::object::ObjectExt;
-    use glib::subclass::prelude::*;
-    use relm4::gtk::glib::{self, Properties};
-
-    use std::cell::{Cell, RefCell};
-
-    use crate::menu_item_model::MenuItemModel;
-
-    #[derive(Default, Properties)]
-    #[properties(wrapper_type = super::ScrollingData)]
-    pub struct ScrollingData {
-        pub item: RefCell<MenuItemModel>,
-        #[property(get, set)]
-        pub index: Cell<i32>,
-    }
-
-    #[glib::object_subclass]
-    impl ObjectSubclass for ScrollingData {
-        const NAME: &'static str = "ScrollData";
-        type Type = super::ScrollingData;
-        type ParentType = Object;
-    }
-
-    #[glib::derived_properties]
-    impl ObjectImpl for ScrollingData {}
-}
 
 mod scroll_imp {
     use glib::object::ObjectExt;
@@ -73,10 +43,6 @@ mod scroll_imp {
 }
 
 glib::wrapper! {
-    pub struct ScrollingData(ObjectSubclass<scroll_data_imp::ScrollingData>);
-}
-
-glib::wrapper! {
     pub struct ScrollBox(ObjectSubclass<scroll_imp::ScrollBox>)
         @extends gtk::Box, gtk::Widget, glib::InitiallyUnowned,
         @implements gtk::Accessible, gtk::Buildable, gtk::ConstraintTarget, gtk::Orientable;
@@ -98,19 +64,8 @@ impl RelmContainerExt for ScrollBox {
     }
 }
 
-impl ScrollingData {
-    pub fn new(item: MenuItemModel) -> Self {
-        let data: Self = glib::Object::builder().build();
-        *data.imp().item.borrow_mut() = item;
-        data
-    }
-    
-    pub fn launcher_item(&self) -> Ref<'_, MenuItemModel> {
-        self.imp().item.borrow()
-    }
-}
-
 pub trait ScrollComponentImpl {
+    fn init() -> Self;
     fn setup(this: Rc<Self>) -> ScrollSettings;
     fn setup_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
     fn bind_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
@@ -151,7 +106,7 @@ where
 #[relm4::component(pub)]
 impl<T> relm4::SimpleComponent for ScrollComponent<T>
 where
-    T: ScrollComponentImpl + Default + 'static,
+    T: ScrollComponentImpl + 'static,
 {
     type Input = ();
     type Output = ();
@@ -181,7 +136,7 @@ where
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let scroll_impl = Rc::from(T::default());
+        let scroll_impl = Rc::from(T::init());
         let settings = T::setup(scroll_impl.clone());
 
         let model = ScrollComponent {

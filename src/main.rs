@@ -1,6 +1,6 @@
 mod menu_item_model;
 mod scroll;
-mod mode;
+mod modes;
 mod launcher_scroll;
 mod index_list;
 

@@ -1,18 +1,19 @@
-use std::{fmt::Display, io, process::Command};
+use std::{fmt::Display, process::Command};
 
-pub enum MenuItemModel {
-    Application(Application),
-    Command(ShellCommand),
-    String(String),
-    None,
+
+
+
+pub trait MenuItemModel {
+    fn name<'a>(&'a self) -> &'a String;
+    fn run_action(&self) -> Result<(), ActionError>;
 }
 
+
 pub struct ActionError {
-    cause: io::Error,
+    cause: std::io::Error,
     error: String,
     command: String,
 }
-
 
 impl Display for ActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -21,34 +22,6 @@ impl Display for ActionError {
 }
 
 
-impl MenuItemModel {
-    pub fn run_action(&self) -> Result<(), ActionError> {
-        match self {
-            MenuItemModel::Application(application) => application.launch(),
-            MenuItemModel::Command(shell_command) => shell_command.launch(),
-            MenuItemModel::String(string) => {
-                println!("{}", string);
-                Ok(())
-            }
-            MenuItemModel::None => panic!("LaucherItem::None cannot be launched."),
-        }
-    }
-
-    pub fn name(&self) -> &String {
-        match self {
-            MenuItemModel::Application(application) => &application.name,
-            MenuItemModel::Command(shell_command) => &shell_command.exec,
-            MenuItemModel::String(string) => string,
-            MenuItemModel::None => panic!("You can't get name from LauncherItem::None"),
-        }
-    }
-}
-
-impl Default for MenuItemModel {
-    fn default() -> Self {
-        MenuItemModel::None
-    }
-}
 
 pub struct Application {
     pub name: String,
@@ -64,8 +37,15 @@ impl Application {
             exec,
         }
     }
+}
 
-    fn launch(&self) -> Result<(), ActionError> {
+
+impl MenuItemModel for Application {
+    fn name<'a>(&'a self) -> &'a String {
+        &self.name
+    }
+
+    fn run_action(&self) -> Result<(), ActionError> {
         Command::new(self.exec.clone())
             .spawn()
             .map(|_| ())
@@ -77,6 +57,7 @@ impl Application {
     }
 }
 
+
 pub struct ShellCommand {
     pub exec: String,
 }
@@ -85,8 +66,15 @@ impl ShellCommand {
     pub fn new(exec: String) -> Self {
         ShellCommand { exec }
     }
+}
 
-    fn launch(&self) -> Result<(), ActionError> {
+
+impl MenuItemModel for ShellCommand {
+    fn name<'a>(&'a self) -> &'a String {
+        &self.exec
+    }
+
+    fn run_action(&self) -> Result<(), ActionError> {
         Command::new(self.exec.clone()).spawn().map(|_| ())
             .map_err(|error| ActionError {
                 cause: error,
@@ -94,22 +82,6 @@ impl ShellCommand {
                 command: self.exec.clone()
             })
     }
+
 }
 
-impl Into<MenuItemModel> for Application {
-    fn into(self) -> MenuItemModel {
-        MenuItemModel::Application(self)
-    }
-}
-
-impl Into<MenuItemModel> for ShellCommand {
-    fn into(self) -> MenuItemModel {
-        MenuItemModel::Command(self)
-    }
-}
-
-impl Into<MenuItemModel> for String {
-    fn into(self) -> MenuItemModel {
-        MenuItemModel::String(self)
-    }
-}
