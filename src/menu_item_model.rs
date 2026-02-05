@@ -6,6 +6,11 @@ use std::{fmt::Display, process::Command};
 pub trait MenuItemModel {
     fn name<'a>(&'a self) -> &'a String;
     fn run_action(&self) -> Result<(), ActionError>;
+    
+    fn run(&self) {
+        let _ =self.run_action();
+        std::process::exit(0);
+    }
 }
 
 
