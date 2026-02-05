@@ -1,4 +1,6 @@
 use std::cell::Ref;
+use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use glib::subclass::types::ObjectSubclassIsExt;
@@ -64,7 +66,8 @@ impl RelmContainerExt for ScrollBox {
     }
 }
 
-pub trait ScrollComponentImpl {
+pub trait ScrollComponentImpl<T: relm4::SimpleComponent, V> {
+    fn update(self: Rc<Self>, scroll: &mut T, msg: V, sender: ComponentSender<T>);
     fn init() -> Self;
     fn setup(this: Rc<Self>) -> ScrollSettings;
     fn setup_element(this: Rc<Self>, factory: &SignalListItemFactory, item: &ListItem);
@@ -75,17 +78,18 @@ pub struct ScrollSettings {
     pub selection: gtk::NoSelection,
 }
 
-pub struct ScrollComponent<T>
+pub struct ScrollComponent<T, V>
 where
-    T: ScrollComponentImpl,
+    T: ScrollComponentImpl<Self, V> + 'static, V: Sized + Debug + 'static
 {
     pub selection: gtk::NoSelection,
+    _phantom: PhantomData<V>,
     _scroll_impl: Rc<T>,
 }
 
-impl<T> ScrollComponent<T>
+impl<T, V> ScrollComponent<T, V>
 where
-    T: ScrollComponentImpl + 'static,
+    T: ScrollComponentImpl<Self, V> + 'static, V: Sized + Debug + 'static
 {
     fn setup_factory(this: Rc<T>) -> gtk::SignalListItemFactory {
         let factory = gtk::SignalListItemFactory::new();
@@ -104,11 +108,11 @@ where
 }
 
 #[relm4::component(pub)]
-impl<T> relm4::SimpleComponent for ScrollComponent<T>
+impl<T, V> relm4::SimpleComponent for ScrollComponent<T, V>
 where
-    T: ScrollComponentImpl + 'static,
+    T: ScrollComponentImpl<Self, V> + 'static, V: Sized + Debug + 'static
 {
-    type Input = ();
+    type Input = V;
     type Output = ();
     type Init = ();
 
@@ -124,6 +128,7 @@ where
                 gtk::ListView {
                     add_css_class: "listview",
                     set_show_separators: false,
+                    #[watch]
                     set_model: Some(&model.selection),
                     set_can_focus: false
                 }
@@ -142,6 +147,7 @@ where
         let model = ScrollComponent {
             selection: settings.selection,
             _scroll_impl: scroll_impl.clone(),
+            _phantom: PhantomData {}
         };
 
         let widgets = view_output!();
@@ -152,4 +158,10 @@ where
 
         ComponentParts { model, widgets }
     }
+    
+    
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        self._scroll_impl.clone().update(self, msg, sender);
+    }
+    
 }

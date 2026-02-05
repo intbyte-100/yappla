@@ -13,20 +13,25 @@ use relm4::{
     view,
 };
 
-
 use crate::{
-    modes::mode::Mode,
     index_list::Index,
-    modes::echo_mode::EchoMode,
-    scroll::{ScrollBox, ScrollComponentImpl, ScrollSettings},
+    modes::{echo_mode::EchoMode, mode::Mode},
+    scroll::{ScrollBox, ScrollComponent, ScrollComponentImpl, ScrollSettings},
 };
+
+#[derive(Debug)]
+pub enum ScrollListMessages {
+    Query(String),
+}
 
 pub struct LauncherScrollImpl {
     focused: RefCell<Option<ScrollBox>>,
     mode: Box<dyn Mode>,
 }
 
-impl ScrollComponentImpl for LauncherScrollImpl {
+impl ScrollComponentImpl<ScrollComponent<Self, ScrollListMessages>, ScrollListMessages>
+    for LauncherScrollImpl
+{
     fn setup(this: Rc<Self>) -> ScrollSettings {
         let list_store = this.mode.model();
         let selection = NoSelection::new(Some(list_store.clone()));
@@ -59,7 +64,7 @@ impl ScrollComponentImpl for LauncherScrollImpl {
                 if gtk_box.as_ptr() == focused.as_ptr() {
                     // TODO: replace the creation of a new index object with the use of the inner Index from gtk_box.
                     let index = Index::new(gtk_box.index() as u32);
-                    this.mode.get_menu_item_model(&index).run_action();
+                    this.mode.get_menu_item_model(&index).run();
                 }
 
                 focused.remove_css_class("row-focused");
@@ -89,11 +94,29 @@ impl ScrollComponentImpl for LauncherScrollImpl {
     }
 
     fn init() -> Self {
+        let mode = std::env::args().nth(1).unwrap_or(String::new());
+        
+        let mode = match mode.as_str() {
+            "echo" => EchoMode::new(),
+            _ => panic!("not implemented yet")
+        };
+        
+        let mode = Box::from(mode);
+        
         Self {
-            mode: Box::from(EchoMode {
-                strings: (0..1000).map(|it| it.to_string()).collect(),
-            }),
             focused: Default::default(),
+            mode
+        }
+    }
+
+    fn update(
+        self: Rc<Self>,
+        scroll: &mut ScrollComponent<Self, ScrollListMessages>,
+        msg: ScrollListMessages,
+        sender: relm4::ComponentSender<ScrollComponent<Self, ScrollListMessages>>,
+    ) {
+        if let ScrollListMessages::Query(string) = msg {
+            scroll.selection = NoSelection::new(Some(self.mode.search(string)));
         }
     }
 }

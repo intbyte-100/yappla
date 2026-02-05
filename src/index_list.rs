@@ -92,15 +92,31 @@ glib::wrapper! {
 }
 
 impl IndexList {
+    
     pub fn new() -> Self {
         glib::Object::builder().build()
     }
 
-    pub fn set_indecies(&self, indecies: Vec<u32>) {
-        *self.imp().items.borrow_mut() = indecies;
-
-        let new_len = self.imp().items.borrow().len() as u32;
+    pub fn with_capacity(capacity: usize) -> Self {
+        let list = Self::new();
+        list.imp().items.borrow_mut().reserve(capacity);
+        list
+    }
+    
+    
+    pub fn set_indecies<T: IntoIterator<Item = u32>>(&self, iter: T) {
+        let old_len = self.imp().items.borrow().len() as u32;
+        
+        let new_len = {
+            let mut indecies = self.imp().items.borrow_mut();
+            indecies.clear();
+            indecies.extend(iter);
+            indecies.len() as u32
+        };
+        
         let list_model: gio::ListModel = self.clone().upcast();
-        list_model.items_changed(0, 0, new_len);
+        
+     
+        list_model.items_changed(0, old_len, new_len);
     }
 }
