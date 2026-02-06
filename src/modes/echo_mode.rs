@@ -76,13 +76,17 @@ impl Mode for EchoMode {
         self.model.clone().upcast()
     }
 
-    fn model(&self) -> ListModel {
+    fn filled_model(&self) -> ListModel {
         self.model.set_indecies((0..(self.strings.len())).map(|i| i as u32));
-        self.model.clone().upcast()
+        self.model()
     }
 
     fn get_menu_item_model<'a>(&'a self, item: &Index) -> &'a dyn MenuItemModel {
         &self.strings[item.index() as usize]
+    }
+
+    fn model(&self) -> relm4::gtk::gio:: ListModel {
+        self.model.clone().upcast()
     }
 }
 

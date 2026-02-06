@@ -1,9 +1,8 @@
-use std::cell::Ref;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use glib::subclass::types::ObjectSubclassIsExt;
+use glib::object::Cast;
 use gtk::glib;
 use relm4::gtk::prelude::{BoxExt, WidgetExt};
 use relm4::gtk::{ListItem, SignalListItemFactory};
@@ -28,7 +27,7 @@ mod scroll_imp {
     #[properties(wrapper_type = super::ScrollBox)]
     pub struct ScrollBox {
         #[property(get, set)]
-        pub index: RefCell<i32>,
+        pub index: RefCell<u32>,
     }
 
     #[glib::object_subclass]
@@ -83,6 +82,7 @@ where
     T: ScrollComponentImpl<Self, V> + 'static, V: Sized + Debug + 'static
 {
     pub selection: gtk::NoSelection,
+    pub list_view: Option<gtk::ListView>,
     _phantom: PhantomData<V>,
     _scroll_impl: Rc<T>,
 }
@@ -96,10 +96,12 @@ where
 
         let impl_clone = this.clone();
         factory.connect_setup(move |factory, item| {
+            let item = item.clone().downcast::<gtk::ListItem>().unwrap();
             T::setup_element(impl_clone.clone(), &factory, &item);
         });
 
         factory.connect_bind(move |factory, item| {
+            let item = item.clone().downcast::<gtk::ListItem>().unwrap();
             T::bind_element(this.clone(), &factory, &item);
         });
 
@@ -130,7 +132,8 @@ where
                     set_show_separators: false,
                     #[watch]
                     set_model: Some(&model.selection),
-                    set_can_focus: false
+                    set_can_focus: false,
+                    
                 }
             }
         }
@@ -144,14 +147,19 @@ where
         let scroll_impl = Rc::from(T::init());
         let settings = T::setup(scroll_impl.clone());
 
-        let model = ScrollComponent {
+        
+         
+        let mut model = ScrollComponent {
             selection: settings.selection,
+            list_view: None,
             _scroll_impl: scroll_impl.clone(),
             _phantom: PhantomData {}
         };
 
         let widgets = view_output!();
-
+        
+        model.list_view = Some(widgets.list.clone());
+        
         widgets
             .list
             .set_factory(Some(&Self::setup_factory(scroll_impl)));
@@ -162,6 +170,8 @@ where
     
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         self._scroll_impl.clone().update(self, msg, sender);
+        
+    
     }
     
 }

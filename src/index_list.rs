@@ -16,6 +16,9 @@ mod index_imp {
     pub struct Index {
         #[property(get, set)]
         pub index: Cell<u32>,
+        
+        #[property(get, set)]
+        pub virtual_index: Cell<u32>,
     }
 
     #[glib::object_subclass]
@@ -79,9 +82,15 @@ mod index_list_imp {
             match pool.pop() {
                 Some(index_wrapper) => {
                     index_wrapper.set_index(index);
+                    index_wrapper.set_virtual_index(position);
+                    
                     Some(index_wrapper.upcast())
                 }
-                None => Some(Index::new(*index).upcast()),
+                None => {
+                    let index = Index::new(*index);
+                    index.set_virtual_index(position);
+                    Some(index.upcast())
+                },
             }
         }
     }
