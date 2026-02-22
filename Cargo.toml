@@ -8,6 +8,7 @@ gtk = { version = "0.10.3", package = "gtk4", features = ["v4_12"] }
 relm4 = "0.10.1"
 glib = { version = "0.21", features = ["v2_74"] }
 strsim = "0.11.1"
+deentry = "0.0.1"
 
 [profile.release]
 opt-level = 3
