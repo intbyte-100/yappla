@@ -17,7 +17,7 @@ use relm4::{
 
 use crate::{
     index_list::Index,
-    modes::{echo_mode::EchoMode, mode::Mode},
+    modes::{apps_mode::AppsMode, echo_mode::EchoMode, mode::Mode},
     scroll::{ScrollBox, ScrollComponent, ScrollComponentImpl, ScrollSettings},
 };
 
@@ -147,12 +147,23 @@ impl ScrollComponentImpl<ScrollComponent<Self, ScrollListMessages>, ScrollListMe
     fn init() -> Self {
         let mode = std::env::args().nth(1).unwrap_or(String::new());
 
-        let mode = match mode.as_str() {
-            "echo" => EchoMode::new(),
-            _ => panic!("not implemented yet"),
+        let mode: Box<dyn Mode> = match mode.as_str() {
+            "echo" => Box::from(EchoMode::new()),
+            "apps" => Box::from(AppsMode::new()),
+            _ => {
+                eprintln!("Error: unknown mode '{}'.", mode);
+                eprintln!("Available modes:");
+                eprintln!("  apps   Launch application mode");
+                eprintln!("  echo   Echo input back to stdout");
+                eprintln!();
+                eprintln!("Usage:");
+                eprintln!("  yappla <mode>");
+            
+                std::process::exit(-1);
+            },
         };
 
-        let mode = Box::from(mode);
+       
 
         Self {
             focused: Default::default(),

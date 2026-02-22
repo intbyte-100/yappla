@@ -15,9 +15,9 @@ pub trait MenuItemModel {
 
 
 pub struct ActionError {
-    cause: std::io::Error,
-    error: String,
-    command: String,
+    pub(crate)cause: std::io::Error,
+    pub(crate)error: String,
+    pub(crate) command: String,
 }
 
 impl Display for ActionError {

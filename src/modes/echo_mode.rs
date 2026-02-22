@@ -38,8 +38,6 @@ impl EchoMode {
 
 impl Mode for EchoMode {
     fn search(&self, query: String) -> ListModel {
-        
-
         if query.is_empty() {
             self.model.set_indecies((0..(self.strings.len() as u32)).into_iter());
             return self.model.clone().upcast();
