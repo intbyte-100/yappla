@@ -17,9 +17,6 @@ use relm4::*;
 
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 
-struct App {
-    scroll: Controller<ScrollComponent<LauncherScrollImpl, ScrollListMessages>>,
-}
 
 #[derive(Debug)]
 enum AppMsg {
@@ -27,6 +24,34 @@ enum AppMsg {
     MoveDown,
     MoveUp,
     Enter,
+}
+
+struct App {
+    scroll: Controller<ScrollComponent<LauncherScrollImpl, ScrollListMessages>>,
+}
+
+impl App {
+    fn load_theme() -> String {
+        let mut css = None;
+
+        if let Ok(home) = std::env::var("HOME") {
+            let path = std::path::Path::new(&home)
+                .join(".config")
+                .join("yappla")
+                .join("yappla.css");
+            if let Ok(contents) = std::fs::read_to_string(&path) {
+                css = Some(contents);
+            }
+        }
+
+        if css.is_none() {
+            if let Ok(contents) = std::fs::read_to_string("./yappla.css") {
+                css = Some(contents);
+            }
+        }
+
+        css.unwrap_or_else(|| include_str!("../theme.css").to_string())
+    }
 }
 
 #[relm4::component]
@@ -42,6 +67,7 @@ impl SimpleComponent for App {
         gtk::Window {
             init_layer_shell: (),
             set_layer: Layer::Overlay,
+            add_css_class: "window",
             set_decorated: false,
             set_exclusive_zone: -1,
             set_anchor: (Edge::Left, false),
@@ -88,7 +114,8 @@ impl SimpleComponent for App {
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let provider = CssProvider::new();
-        provider.load_from_data(include_str!("../theme.css"));
+        
+        provider.load_from_data(&Self::load_theme().as_str());
 
         gtk::style_context_add_provider_for_display(
             &Display::default().unwrap(),

@@ -3,6 +3,12 @@ box.row-focused {
     color: white;
 }
 
+.window {
+    border: none;
+    box-shadow: none;
+    border-radius: 10px; 
+}
+
 .entry {
     padding: 5px; 
     margin: 10px;
