@@ -7,12 +7,15 @@ mod scroll;
 use crate::launcher_scroll::*;
 use crate::scroll::ScrollComponent;
 
-use gtk::prelude::{BoxExt, GtkWindowExt};
+use gtk::DrawingArea;
+use gtk::prelude::{BoxExt, DrawingAreaExtManual, GtkWindowExt};
 use relm4::gtk::gdk::{self, Display};
 
 use relm4::gtk::CssProvider;
 use relm4::gtk::prelude::{EditableExt, EntryExt, OrientableExt, WidgetExt};
 use relm4::*;
+
+use gtk4_layer_shell::{Edge, Layer, LayerShell};
 
 struct App {
     scroll: Controller<ScrollComponent<LauncherScrollImpl, ScrollListMessages>>,
@@ -34,16 +37,33 @@ impl SimpleComponent for App {
 
     view! {
         #[root]
-        
+
         #[name(#[allow(unused)] window)]
         gtk::Window {
-            set_title: Some("Factory example"),
+            init_layer_shell: (),
+            set_layer: Layer::Overlay,
+            set_decorated: false,
+            set_exclusive_zone: -1,
+            set_anchor: (Edge::Left, false),
+            set_anchor: (Edge::Right, false),
+            set_anchor: (Edge::Top, false),
+            set_anchor: (Edge::Bottom, false),
+            set_margin: (Edge::Left, 0),
+            set_margin: (Edge::Right, 0),
+            set_margin: (Edge::Top, 0),
+            set_margin: (Edge::Bottom, 0),
+            set_focusable: true,
+            set_keyboard_mode: gtk4_layer_shell::KeyboardMode::Exclusive,
+            
+
+            set_title: Some("yappla"),
             set_default_size: (300, 200),
 
 
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+                
                 #[name(#[allow(unused)] entry)]
                 gtk::Entry {
                     set_hexpand: true,
@@ -55,6 +75,8 @@ impl SimpleComponent for App {
                     connect_activate[_sender] => move |_| {_sender.input(AppMsg::Enter)},
                     connect_changed[_sender] => move |it| {_sender.input(AppMsg::Query(it.text().to_string()))},
                 },
+                
+
                 append: model.scroll.widget()
             }
         }
@@ -78,37 +100,38 @@ impl SimpleComponent for App {
             scroll: ScrollComponent::builder().launch(()).detach(),
         };
 
-    
         let widgets = view_output!();
-        
+        widgets.window.grab_focus();
+        widgets.entry.grab_focus();
+
         let key_controller = gtk::EventControllerKey::new();
-        
+
         let clonned_sender = _sender.clone();
-        
-        key_controller.connect_key_pressed(
-            move |_controller, keyval, _keycode, _| {
-                match keyval {
-                    gdk::Key::Up => {
-                        clonned_sender.input(AppMsg::MoveUp);
-                        glib::Propagation::Stop
-                    }
-                    gdk::Key::Down => {
-                        clonned_sender.input(AppMsg::MoveDown);
-                        glib::Propagation::Stop
-                    }
-                    _ => glib::Propagation::Proceed,
-                }
+
+        key_controller.connect_key_pressed(move |_controller, keyval, _keycode, _| match keyval {
+            gdk::Key::Escape => {
+                std::process::exit(0);
             }
-        );
+            gdk::Key::Up => {
+                clonned_sender.input(AppMsg::MoveUp);
+                glib::Propagation::Stop
+            }
+            gdk::Key::Down => {
+                clonned_sender.input(AppMsg::MoveDown);
+                glib::Propagation::Stop
+            }
+            _ => glib::Propagation::Proceed,
+        });
 
-
+        
+       
         widgets.window.add_controller(key_controller);
         ComponentParts { model, widgets }
     }
 
     fn update(&mut self, msg: Self::Input, _: ComponentSender<Self>) {
         match msg {
-            AppMsg::Query(text)=>self.scroll.sender().emit(ScrollListMessages::Query(text)),
+            AppMsg::Query(text) => self.scroll.sender().emit(ScrollListMessages::Query(text)),
             AppMsg::MoveDown => self.scroll.sender().emit(ScrollListMessages::MoveDown),
             AppMsg::MoveUp => self.scroll.sender().emit(ScrollListMessages::MoveUp),
             AppMsg::Enter => self.scroll.sender().emit(ScrollListMessages::Enter),
