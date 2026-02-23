@@ -9,6 +9,7 @@ relm4 = "0.10.1"
 glib = { version = "0.21", features = ["v2_74"] }
 strsim = "0.11.1"
 deentry = "0.0.1"
+gtk4-layer-shell = "0.7.1"
 
 [profile.release]
 opt-level = 3
