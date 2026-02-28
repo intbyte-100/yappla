@@ -1,6 +1,13 @@
-use std::{cell::RefCell, env::home_dir, fs, path::PathBuf, process::Command};
+use std::{
+    cell::RefCell,
+    collections::HashSet,
+    env::{self, home_dir},
+    fs,
+    path::PathBuf,
+    process::Command,
+};
 
-use deentry::DesktopEntry;
+use freedesktop_file_parser::{EntryType, parse};
 use glib::object::Cast;
 use strsim::{jaro_winkler, normalized_levenshtein};
 
@@ -19,21 +26,16 @@ pub struct AppsMode {
 
 impl AppsMode {
     pub fn new() -> Self {
-        let search_paths = [
-            PathBuf::from("/usr/share/applications"),
-            home_dir()
-                .map(|h| h.join(".local/share/applications"))
-                .unwrap_or_default(),
-        ];
+        let search_paths = Self::get_desktop_search_paths();
 
         let mut apps = Vec::new();
 
-        for dir in search_paths {
+        for dir in &search_paths {
             if !dir.is_dir() {
                 continue;
             }
 
-            if let Ok(entries) = fs::read_dir(&dir) {
+            if let Ok(entries) = fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
 
@@ -46,40 +48,24 @@ impl AppsMode {
                         Err(_) => continue,
                     };
 
-                    let desktop = match DesktopEntry::try_from(content.as_str()) {
+                    let desktop = match parse(&content) {
                         Ok(d) => d,
                         Err(_) => continue,
                     };
 
-                    let desktop_entry = match desktop
-                        .groups()
-                        .iter()
-                        .find(|it| it.name() == "Desktop Entry")
-                    {
-                        Some(it) => it,
-                        None => continue,
+                    let desktop_entry = match &desktop.entry.entry_type {
+                        EntryType::Application(app) => app,
+                        _ => continue,
                     };
 
-                    if let Some(no_display) = desktop_entry.get("NoDisplay") {
-                        let no_display = no_display.value().clone().as_boolean().unwrap_or(false);
-
-                        if no_display {
-                            continue;
-                        }
+                    if desktop.entry.no_display.unwrap_or(false) {
+                        continue;
                     }
 
-                    let name = match desktop_entry.get("Name") {
-                        Some(it) => it.value().as_string().unwrap_or(""),
-                        None => continue,
-                    };
+                    let name = desktop.entry.name.default;
+                    let exec = desktop_entry.exec.clone().unwrap_or("".to_string());
 
-                    let exec = match desktop_entry.get("Exec") {
-                        Some(it) => it.value().as_string().unwrap_or(""),
-                        None => continue,
-                    };
-
-                    
-                    if name.is_empty() || exec.is_empty() {
+                    if exec.is_empty() {
                         continue;
                     }
 
@@ -102,12 +88,40 @@ impl AppsMode {
             model,
         }
     }
+
+    fn get_desktop_search_paths() -> HashSet<PathBuf> {
+        let mut paths = Vec::new();
+
+        let user_data = env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                home_dir()
+                    .unwrap_or_else(|| PathBuf::from("/"))
+                    .join(".local/share")
+            });
+
+        paths.push(user_data.join("applications"));
+
+        let system_dirs =
+            env::var_os("XDG_DATA_DIRS").unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+
+        for dir in env::split_paths(&system_dirs) {
+            paths.push(dir.join("applications"));
+        }
+
+        paths.push(PathBuf::from("/var/lib/flatpak/exports/share/applications"));
+        if let Some(home) = home_dir() {
+            paths.push(home.join(".local/share/flatpak/exports/share/applications"));
+        }
+
+        paths.into_iter().collect()
+    }
 }
 
 impl Mode for AppsMode {
     fn search(&self, query: String) -> gtk::gio::ListModel {
         //TODO: refactor. Move the search into a generalized search function
-        
+
         if query.is_empty() {
             self.model
                 .set_indecies((0..(self.apps.len() as u32)).into_iter());
@@ -172,7 +186,13 @@ impl MenuItemModel for Application {
     }
 
     fn run_action(&self) -> Result<(), ActionError> {
-        let exec = self.exec.replace("%u", "");
+        let patterns = [
+            "%f", "%F", "%u", "%U", "%d", "%D", "%n", "%N", "%i", "%c", "%k", "%v", "%m",
+        ];
+
+        let exec = patterns
+            .iter()
+            .fold(self.exec.clone(), |acc, &pattern| acc.replace(pattern, ""));
 
         Command::new("sh")
             .arg("-c")
