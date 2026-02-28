@@ -67,6 +67,7 @@ impl SimpleComponent for App {
         gtk::Window {
             init_layer_shell: (),
             set_layer: Layer::Overlay,
+            set_namespace: Some("yappla"),
             add_css_class: "window",
             set_decorated: false,
             set_exclusive_zone: -1,
