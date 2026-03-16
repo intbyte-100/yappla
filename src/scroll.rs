@@ -121,7 +121,9 @@ where
     view! {
         #[root]
         gtk::Box {
+            add_css_class: "inner-box",
             gtk::ScrolledWindow {
+                add_css_class: "scroll",
                 set_vexpand: true,
                 set_hexpand: true,
                 set_policy: (gtk::PolicyType::Automatic, gtk::PolicyType::Automatic),

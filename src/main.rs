@@ -90,9 +90,11 @@ impl SimpleComponent for App {
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
+                add_css_class: "outer-box",
                 
                 #[name(#[allow(unused)] entry)]
                 gtk::Entry {
+                    add_css_class: "input",
                     set_hexpand: true,
                     set_placeholder_text: Some("Enter text"),
                     set_margin_start: 10,

@@ -44,7 +44,6 @@ impl LauncherScrollImpl {
             *self.focused.borrow_mut() = Some(len - 1);
         } else if update {
             let old_index = self.focused.borrow_mut().replace(index);
-
             old_index.map(|it| self.mode.model().items_changed(it, 1, 1));
             self.mode.model().items_changed(index, 1, 1)
         }
@@ -103,7 +102,9 @@ impl ScrollComponentImpl<ScrollComponent<Self, ScrollListMessages>, ScrollListMe
                 set_margin_top: 0,
                 set_margin_bottom: 0,
                 #[name = "label"]
-                gtk::Label {}
+                gtk::Label {
+
+                }
             }
         };
 
@@ -131,13 +132,27 @@ impl ScrollComponentImpl<ScrollComponent<Self, ScrollListMessages>, ScrollListMe
         let gtk_box = item.child().unwrap().downcast::<gtk::Box>().unwrap();
         let scroll_box = gtk_box.clone().downcast::<ScrollBox>().unwrap();
         let index = item.item().unwrap().downcast::<Index>().unwrap();
+        let label = scroll_box
+            .first_child()
+            .unwrap()
+            .downcast::<gtk::Label>()
+            .unwrap();
 
         scroll_box.set_index(index.virtual_index());
 
-        if let Some(focused) = this.focused.borrow().as_ref() {
-            if scroll_box.index() == *focused {
-                scroll_box.add_css_class("row-focused");
-            }
+        let focused = this
+            .focused
+            .borrow()
+            .as_ref()
+            .map(|it| scroll_box.index() == *it)
+            .unwrap_or(false);
+
+        if focused {
+            scroll_box.add_css_class("entry-focused");
+            label.add_css_class("focused-text");
+        } else {
+            scroll_box.add_css_class("entry");
+            label.add_css_class("text")
         }
 
         gtk_box
@@ -163,12 +178,10 @@ impl ScrollComponentImpl<ScrollComponent<Self, ScrollListMessages>, ScrollListMe
                 eprintln!();
                 eprintln!("Usage:");
                 eprintln!("  yappla <mode>");
-            
-                std::process::exit(-1);
-            },
-        };
 
-       
+                std::process::exit(-1);
+            }
+        };
 
         Self {
             focused: Default::default(),
