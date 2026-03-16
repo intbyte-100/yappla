@@ -35,14 +35,14 @@ pub struct LauncherScrollImpl {
 }
 
 impl LauncherScrollImpl {
-    fn set_focus(&self, index: u32) {
+    fn set_focus_internal(&self, index: u32, update: bool) {
         let len = self.mode.model().iter::<Index>().len() as u32;
 
         if len == 0 {
             *self.focused.borrow_mut() = None;
         } else if len <= index {
             *self.focused.borrow_mut() = Some(len - 1);
-        } else {
+        } else if update {
             let old_index = self.focused.borrow_mut().replace(index);
 
             old_index.map(|it| self.mode.model().items_changed(it, 1, 1));
@@ -50,8 +50,12 @@ impl LauncherScrollImpl {
         }
     }
 
+    fn set_focus(&self, index: u32) {
+        self.set_focus_internal(index, true);
+    }
+
     fn set_focus_with_scroll(&self, index: u32, offset: i32, list_view: &gtk::ListView) {
-        self.set_focus(index);
+        self.set_focus_internal(index.checked_add_signed(-offset).unwrap_or(0), false);
 
         if let Some(focused) = self.focused.borrow().as_ref() {
             let info = ScrollInfo::new();
@@ -69,10 +73,11 @@ impl LauncherScrollImpl {
                 let adj = scroll.vadjustment();
                 adj.set_value(adj.upper() - adj.page_size());
                 return;
-            } 
+            }
 
             list_view.scroll_to(index, ListScrollFlags::empty(), Some(info));
         }
+        self.set_focus(index);
     }
 }
 
