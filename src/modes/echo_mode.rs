@@ -10,7 +10,7 @@ use strsim::{jaro_winkler, normalized_levenshtein};
 use crate::{
     index_list::{Index, IndexList},
     menu_item_model::{ActionError, MenuItemModel},
-    modes::mode::Mode,
+    modes::mode::Mode, search::{Searchable, Searcher},
 };
 
 pub struct EchoMode {
@@ -44,26 +44,9 @@ impl Mode for EchoMode {
         }
 
         let query_lower = query.to_lowercase();
-        let query_len = query_lower.len();
 
-        let entries = self
-            .strings
-            .iter()
-            .enumerate()
-            .map(|(index, _)| {
-                let item_lower = &self.lower[index];
-                let score = if query_len <= 3 {
-                    jaro_winkler(&item_lower, &query_lower)
-                } else {
-                    normalized_levenshtein(&item_lower, &query_lower)
-                        + item_lower
-                            .contains(&query_lower)
-                            .then(|| 0.5)
-                            .unwrap_or(0.0)
-                };
-                (index as u32, score)
-            })
-            .filter(|(_, score)| *score > 0.3);
+        let searcher = Searcher::new(&self.lower);
+        let entries = searcher.search(&query_lower);
 
         let mut indecies_buffer = self.indecies_buffer.borrow_mut();
         indecies_buffer.clear();
@@ -96,5 +79,12 @@ impl MenuItemModel for String {
     fn run_action(&self) -> Result<(), ActionError> {
         println!("{}", self);
         Ok(())
+    }
+}
+
+
+impl Searchable for String {
+    fn score(&self, request: &str) -> f64 {
+        self.as_str().score(request)
     }
 }

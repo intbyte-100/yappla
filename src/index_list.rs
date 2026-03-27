@@ -129,3 +129,10 @@ impl IndexList {
         list_model.items_changed(0, old_len, new_len);
     }
 }
+
+
+impl Default for IndexList {
+    fn default() -> Self {
+        glib::Object::builder().build()
+    }
+}

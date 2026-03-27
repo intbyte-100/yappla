@@ -3,6 +3,7 @@ mod launcher_scroll;
 mod menu_item_model;
 mod modes;
 mod scroll;
+pub mod search;
 
 use crate::launcher_scroll::*;
 use crate::scroll::ScrollComponent;
