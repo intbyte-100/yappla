@@ -9,17 +9,16 @@ use std::{
 
 use freedesktop_file_parser::{EntryType, parse};
 use glib::object::Cast;
-use strsim::{jaro_winkler, normalized_levenshtein};
 
 use crate::{
     index_list::IndexList,
     menu_item_model::{ActionError, MenuItemModel},
     modes::mode::Mode,
+    search::{Searchable, Searcher},
 };
 
 pub struct AppsMode {
     apps: Vec<Application>,
-    lowered_names: Vec<String>,
     indecies_buffer: RefCell<Vec<(u32, f64)>>,
     model: IndexList,
 }
@@ -65,25 +64,31 @@ impl AppsMode {
                     let name = desktop.entry.name.default;
                     let exec = desktop_entry.exec.clone().unwrap_or("".to_string());
 
+                    let mut keywords = desktop_entry.keywords.clone().unwrap_or_default().default;
+
+                    keywords.iter_mut().for_each(|it| *it = it.to_lowercase());
+
+                    let lower_name = name.to_lowercase();
+
                     if exec.is_empty() {
                         continue;
                     }
 
                     apps.push(Application {
-                        name: name.to_string(),
+                        display_name: name.to_string(),
+                        lower_name: lower_name,
+                        keywords: keywords,
                         exec: exec.to_string(),
                     });
                 }
             }
         }
 
-        let lowered_names = apps.iter().map(|a| a.name.to_lowercase()).collect();
         let indecies_buffer = RefCell::new(Vec::with_capacity(apps.len()));
         let model = IndexList::with_capacity(apps.len());
 
         Self {
             apps,
-            lowered_names,
             indecies_buffer,
             model,
         }
@@ -120,44 +125,24 @@ impl AppsMode {
 
 impl Mode for AppsMode {
     fn search(&self, query: String) -> gtk::gio::ListModel {
-        //TODO: refactor. Move the search into a generalized search function
-
         if query.is_empty() {
-            self.model
-                .set_indecies((0..(self.apps.len() as u32)).into_iter());
-            return self.model.clone().upcast();
+            return self.filled_model();
         }
 
         let query_lower = query.to_lowercase();
-        let query_len = query_lower.len();
-
-        let entries = self
-            .apps
-            .iter()
-            .enumerate()
-            .map(|(index, _)| {
-                let item_lower = &self.lowered_names[index];
-                let score = if query_len <= 3 {
-                    jaro_winkler(&item_lower, &query_lower)
-                } else {
-                    normalized_levenshtein(&item_lower, &query_lower)
-                        + item_lower
-                            .contains(&query_lower)
-                            .then(|| 0.5)
-                            .unwrap_or(0.0)
-                };
-                (index as u32, score)
-            })
-            .filter(|(_, score)| *score > 0.3);
+        let searcher = Searcher::new(&self.apps);
+        let entries = searcher.search(query_lower.as_str());
 
         let mut indecies_buffer = self.indecies_buffer.borrow_mut();
+
         indecies_buffer.clear();
         indecies_buffer.extend(entries);
         indecies_buffer.sort_by(|a, b| b.1.total_cmp(&a.1));
 
         self.model
             .set_indecies(indecies_buffer.iter().map(|it| it.0));
-        self.model.clone().upcast()
+
+        self.model()
     }
 
     fn filled_model(&self) -> gtk::gio::ListModel {
@@ -176,13 +161,30 @@ impl Mode for AppsMode {
 }
 
 struct Application {
-    name: String,
+    display_name: String,
+    lower_name: String,
+    keywords: Vec<String>,
     exec: String,
+}
+
+impl Searchable for Application {
+    fn score(&self, request: &str) -> f64 {
+        let name_score = self.lower_name.as_str().score(request);
+
+        self.keywords
+            .iter()
+            .map(|it| it.as_str().score(request))
+            .reduce(f64::max)
+            .unwrap_or(0.0)
+            .powi(2)
+            .max(name_score)
+            .powf(1.3)
+    }
 }
 
 impl MenuItemModel for Application {
     fn name<'a>(&'a self) -> &'a String {
-        &self.name
+        &self.display_name
     }
 
     fn run_action(&self) -> Result<(), ActionError> {
