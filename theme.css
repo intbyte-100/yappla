@@ -1,25 +1,68 @@
+@define-color bg0 #1e1e1e;
+@define-color bg1 #2a2a2a;
+@define-color bg2 #3a3a3a;
+@define-color accent #3584e4; 
+@define-color accent-hover #4a90e2;
+@define-color fg0 #e6e6e6;
+@define-color fg1 #ffffff;
+@define-color border rgba(255, 255, 255, 0.08);
+
+window {
+    border: 1px solid @border;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    border-radius: 20px;
+    background-color: @bg0;
+    min-width: 480pt;
+    min-height: 300px;
+}
+
+box.outer-box {
+    background-color: transparent;
+    padding: 8px;
+}
+
+
+box.entry {
+    padding: 8px;
+    background-color: transparent;
+}
+
 box.entry-focused {
-    background-color: #3399FF;
-    color: white;
+    background-color: @accent;
+    color: @fg1;
+    padding: 8px;
+    border-radius: 8px;
 }
 
-.window {
-    border: none;
-    box-shadow: none;
-    border-radius: 10px; 
+entry.input {
+    padding: 8px 10px;
+    margin: 6px;
+    background-color: @bg1;
+    color: @fg0;
+    border: 1px solid @border;
+    border-radius: 8px;
+    outline: none;
 }
 
-.entry {
-    padding: 5px; 
-    margin: 10px;
-}
 
-listview cell { 
-    padding: 0px 0px; 
+.inner-box,
+.scroll,
+.listview {
+    background: transparent;
 }
 
 .listview row {
-    min-height: 0px;
-    margin: 0px;
-    padding: 0px;
+    min-height: 32px;
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.listview row:hover {
+    background-color: transparent;
+}
+
+listview cell {
+    padding: 2px 6px;
+    background-color: transparent;
 }
