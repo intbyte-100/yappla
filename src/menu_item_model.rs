@@ -1,7 +1,4 @@
-use std::{fmt::Display, process::Command};
-
-
-
+use std::fmt::Display;
 
 pub trait MenuItemModel {
     fn name<'a>(&'a self) -> &'a String;
@@ -25,68 +22,3 @@ impl Display for ActionError {
         write!(f, "{}\n  Command: {}\n  Cause: {}", self.error, self.command, self.cause)
     }
 }
-
-
-
-pub struct Application {
-    pub name: String,
-    pub description: String,
-    exec: String,
-}
-
-impl Application {
-    pub fn new(name: String, description: String, exec: String) -> Self {
-        Application {
-            name,
-            description,
-            exec,
-        }
-    }
-}
-
-
-impl MenuItemModel for Application {
-    fn name<'a>(&'a self) -> &'a String {
-        &self.name
-    }
-
-    fn run_action(&self) -> Result<(), ActionError> {
-        Command::new(self.exec.clone())
-            .spawn()
-            .map(|_| ())
-            .map_err(|error| ActionError {
-                cause: error,
-                error: format!("Failed to start application '{}'", self.name),
-                command: self.exec.clone()
-            })
-    }
-}
-
-
-pub struct ShellCommand {
-    pub exec: String,
-}
-
-impl ShellCommand {
-    pub fn new(exec: String) -> Self {
-        ShellCommand { exec }
-    }
-}
-
-
-impl MenuItemModel for ShellCommand {
-    fn name<'a>(&'a self) -> &'a String {
-        &self.exec
-    }
-
-    fn run_action(&self) -> Result<(), ActionError> {
-        Command::new(self.exec.clone()).spawn().map(|_| ())
-            .map_err(|error| ActionError {
-                cause: error,
-                error: format!("Failed to execute command"),
-                command: self.exec.clone()
-            })
-    }
-
-}
-

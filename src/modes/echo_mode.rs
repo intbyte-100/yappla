@@ -5,7 +5,6 @@ use std::{
 
 use glib::object::Cast;
 use relm4::gtk::gio::ListModel;
-use strsim::{jaro_winkler, normalized_levenshtein};
 
 use crate::{
     index_list::{Index, IndexList},

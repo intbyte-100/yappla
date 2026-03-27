@@ -7,9 +7,7 @@ pub mod search;
 
 use crate::launcher_scroll::*;
 use crate::scroll::ScrollComponent;
-
-use gtk::DrawingArea;
-use gtk::prelude::{BoxExt, DrawingAreaExtManual, GtkWindowExt};
+use gtk::prelude::{BoxExt, GtkWindowExt};
 use relm4::gtk::gdk::{self, Display};
 
 use relm4::gtk::CssProvider;
@@ -56,15 +54,15 @@ impl App {
 }
 
 #[relm4::component]
+
 impl SimpleComponent for App {
     type Init = u8;
     type Input = AppMsg;
     type Output = ();
 
-    view! {
+    view! {        
         #[root]
-
-        #[name(#[allow(unused)] window)]
+        #[name(window)]
         gtk::Window {
             init_layer_shell: (),
             set_layer: Layer::Overlay,
@@ -82,12 +80,8 @@ impl SimpleComponent for App {
             set_margin: (Edge::Bottom, 0),
             set_focusable: true,
             set_keyboard_mode: gtk4_layer_shell::KeyboardMode::Exclusive,
-            
-
             set_title: Some("yappla"),
             set_default_size: (300, 200),
-
-
 
             gtk::Box {
                 set_orientation: gtk::Orientation::Vertical,
